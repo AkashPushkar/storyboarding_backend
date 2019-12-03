@@ -9,7 +9,9 @@ import math
 from pycocotools.coco import COCO
 import pdb
 
+import torch
 import torchvision.models as models
+import torchvision.transforms as transforms
 
 from sklearn.cluster import KMeans
 
@@ -59,9 +61,16 @@ class imageAveraging:
 	def globalFeature(self, catNms, inputDir, outputDir):
 		
 		
+		loader = transforms.Compose([ transforms.ToTensor()])	
+		
+		def image_loader(image):
+			image = loader(image).float()
+			image = image.unsqueeze(0)
+			return image
+
 		alexnet = models.alexnet(pretrained=True).features
 
-		
+		shape = (256, 256)
 		for cat in catNms:
 			data = {}
 			catIds = self.coco.getCatIds(catNms = cat)
@@ -69,73 +78,82 @@ class imageAveraging:
 			annIds = self.coco.getAnnIds(imgIds = imgIds, catIds = catIds, iscrowd=None)
 			
 			for annId in annIds:
-				img = cv2.imread(os.path.join(inputDir, str(annId)+'.jpg'))
-				if (img == None):
-					continue
-				fv = np.array(alexnet(img)).flatten()
+				img = cv2.imread(os.path.join(inputDir,cat, str(annId)+'.jpg'))
 				
-				data[annId] = fv
+				#
+				if (img is None):
+					continue
+				#pdb.set_trace()
+				img = cv2.resize(img,shape)
+				img = image_loader(img)	
+				fv = alexnet(img).detach().numpy().flatten()
+				
+				data[annId] = fv.tolist()
 		
-			with open(os.apth.join(outputDir, cat+'.json'), 'w+') as file:
+			with open(os.path.join(outputDir, cat+'.json'), 'w+') as file:
 				json.dump(data, file)	
 						
 	
 
-	def clustering(self, catNms, featureDir, clusterResultDir,  n_cluster='auto'):
+	def clustering(self, catNms, featureDir, clusterResultDir,  n_clusters='auto'):
 				
 		for cat in catNms:
 			
-			with open(os.path.join(featureDir,cat+'.json', 'r')) as file:
+			with open(os.path.join(featureDir ,cat+'.json'), 'r') as file:
 				data = json.load(file)
 			d = []
 			annId = []
 			for i in data.keys():
 				d.append(data[i])
 				annId.append(i)
-			if n_cluster == 'auto':
-				n_cluster = int(math.sqrt(len(d)))
-			kmeans = KMeans(n_cluster).fit(X)
+			if n_clusters == 'auto':
+				n_clusters = int(math.sqrt(len(d)))
+			kmeans = KMeans(n_clusters=n_clusters).fit(d)
 			labels = kmeans.labels_
-			centroids = kmeans.cluster_centres_
+			centroids = kmeans.cluster_centers_
 			
-			clusterResult = {} 
-			for i in range(n_cluster):
+			clusterResult = {}
+			for i in range(n_clusters):
 				clusterResult[str(i)] = []
 
-			for i in zip(annId, labels):
-				clusterResult[str(labels)].append(annId)
+			for i,j in zip(annId, labels):
+				clusterResult[str(j)].append(i)
 
 
 			with open(os.path.join(clusterResultDir, cat+'.json'), 'w+') as file:
 				json.dump(clusterResult, file)
-
+				
 		
-	def averagingImage(self, catNms, clusterResultDir):
+	def averagingImage(self, catNms,objImageDir, clusterResultDir):
 		for cat in catNms:
 			with open(os.path.join(clusterResultDir, cat+'.json'), 'r') as file:
-			data = json.load(file)
+				data = json.load(file)
 
-			for key in data:
+			for key in data.keys():
+				#pdb.set_trace()
 				combinedImg = []
 				#averageImg = np.zeros((256,256,3))
-				for img in data[key]:
-					averageImg.append(img)
+				for annId in data[key]:
+					img = cv2.imread(os.path.join(objImageDir, cat, str(annId)+'.jpg'))
+					img = cv2.resize(img, (256, 256))
+					combinedImg.append(img)
 
-				m = np.ma.masked_where(img == 0, img)
+				m = np.ma.masked_where(combinedImg == 0, combinedImg)
+				#pdb.set_trace()
 				combinedImg = np.ma.median(m, axis=0).filled(0)
-			cv2.imwrite(os.path.join(clusterResultDir, cat, str(key)+.jpg), combinedImg) 
+				cv2.imwrite(os.path.join(clusterResultDir, cat, str(key)+'.jpg'), combinedImg) 
 
 
 
-#	def visualization(self, catNms, clusterResultDir):
-#
-#		for cat in catNms:
-#			with open(os.path.join(clusterResultDir, cat+'.json'), 'r') as file:
-#				data = json.load(file)
-#
-#
-#			
-#			for key 
+	def visualization(self, catNms, clusterResultDir):
+
+		for cat in catNms:
+			with open(os.path.join(clusterResultDir, cat+'.json'), 'r') as file:
+				data = json.load(file)
+
+
+			
+			for key 
 			
 
 
