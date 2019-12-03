@@ -1,13 +1,14 @@
-from . import imageAveraging
+import imageAveraging
 
 
 # Initialization and parameters to the imageAveraging file
-dataDir='..'
-dataType='val2017'
-annFile='{}/annotations/instances_{}.json'.format(dataDir,dataType)
+dataDir='/home/apushkar/home/datasets/coco'
+dataType='train2017'
+annFile='{}/annotations/instances_{}.json'.format(dataDir, dataType)
 
 
 
+outputDir="/home/apushkar/home/datasets/AOI/objImages"
+imgAvrg = imageAveraging.imageAveraging(dataDir, dataType, annFile)
 
-imgAvrg = imageAveraging.imageAveraging()
-imgAvrg.objectImageCreator(catNms=['bear'], outputDir="~//home/datasets/AOI")
+imgAvrg.objectImageCreator(catNms=['bear'],outputDir = outputDir )
