@@ -1,5 +1,9 @@
 # folders
 __pychache__
+data/
+.ipynb*/
 
 # files
 *.pyc
+*.ipynb
+*.pcd
